@@ -171,16 +171,46 @@
   .drawer-body textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-size: 14px; color: var(--text); font-family: inherit; outline: none; resize: none; line-height: 1.5; transition: border-color 0.15s; }
   .drawer-body textarea:focus { border-color: var(--border-mid); background: var(--surface); }
 
-  @media (max-width: 520px) {
+  /* Tablet */
+  @media (max-width: 700px) {
+    main { padding: 14px 12px 60px; }
     .form-grid { grid-template-columns: 1fr 1fr; }
-    .search-wrap input { width: 130px; }
+  }
+
+  /* Telefon */
+  @media (max-width: 480px) {
     header { padding: 10px 14px; }
+    .logo { font-size: 15px; }
+    main { padding: 12px 10px 60px; }
+    .form-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .form-row2 { grid-template-columns: 1fr; }
+    .form-row2 > div:last-child { display: flex; }
+    .form-row2 .btn-primary { width: 100%; justify-content: center; }
+    .stats { gap: 6px; }
+    .stat { padding: 10px 8px; }
+    .stat-num { font-size: 22px; }
+    .filter-row { padding: 8px 10px; gap: 6px; }
+    .filter-label { min-width: 42px; font-size: 10px; }
+    .filter-btn { padding: 4px 10px; font-size: 12px; }
+    .kask-card { padding: 10px 10px; gap: 8px; flex-wrap: wrap; }
+    .kask-emoji { width: 32px; height: 32px; font-size: 17px; }
+    .kask-body { min-width: 0; flex: 1; }
+    .label-model { font-size: 14px; }
+    .label-kolor { font-size: 12px; }
+    .label-rozmiar { font-size: 12px; }
+    .kask-actions { width: 100%; justify-content: flex-end; gap: 4px; padding-top: 6px; border-top: 1px solid var(--border); margin-top: 4px; }
+    .btn { font-size: 12px; padding: 6px 10px; }
+    .btn-sell, .btn-undo { padding: 6px 12px; }
+    .add-card { padding: 12px; }
+    .karton-badge { font-size: 11px; padding: 3px 10px; }
+    .search-wrap { width: 100%; margin-left: 0; }
+    .search-wrap input { width: 100%; }
+    .filter-row:last-child { flex-direction: column; align-items: flex-start; gap: 6px; }
   }
 </style>
 </head>
 <body>
 
-<!-- ⚠️ KONFIGURACJA — wklej swoje klucze Supabase poniżej -->
 <script>
   const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ...
@@ -221,7 +251,6 @@
       <div class="filter-chips" id="chips-status">
         <button class="filter-btn active" onclick="setFilter('wszystkie',this,'status')">Wszystkie</button>
         <button class="filter-btn" onclick="setFilter('dostepne',this,'status')">✓ Dostępne</button>
-        <button class="filter-btn" onclick="setFilter('zarezerwowane',this,'status')">⏳ Zarezerwowane</button>
         <button class="filter-btn" onclick="setFilter('sprzedane',this,'status')">Sprzedane</button>
       </div>
     </div>
@@ -555,7 +584,7 @@ function render() {
         ${szukamy ? `<span class="karton-hint">← tutaj szukaj</span>` : ''}
       </div>
       ${items.map(k => {
-        const stan = k.sprzedany ? 'sold' : k.zarezerwowany ? 'reserved' : k.ekspozycja ? 'expo' : '';
+        const stan = k.sprzedany ? 'sold' : k.ekspozycja ? 'expo' : '';
         const kolor = k.kolor || k.cena || '';
         return `
         <div class="kask-card ${stan}">
@@ -569,13 +598,11 @@ function render() {
             <div class="kask-tags">
               ${k.nota ? `<span class="tag tag-n">⚠ ${esc(k.nota)}</span>` : ''}
               ${k.ekspozycja ? '<span class="tag tag-expo">ekspozycja</span>' : ''}
-              ${k.zarezerwowany ? '<span class="tag tag-reserved">⏳ rezerwacja</span>' : ''}
               ${k.sprzedany ? '<span class="tag tag-sold">sprzedany</span>' : ''}
             </div>
           </div>
           <div class="kask-actions">
             <button class="btn btn-expo${k.ekspozycja?' active':''}" onclick="toggleEkspozycja(${k.id})">🟢 Ekspozycja</button>
-            <button class="btn btn-reserve${k.zarezerwowany?' active':''}" onclick="toggleRezerwacja(${k.id})">⏳ ${k.zarezerwowany?'Zarezerwowany':'Rezerwuj'}</button>
             <button class="btn ${k.sprzedany?'btn-undo':'btn-sell'}" onclick="toggleSell(${k.id})">${k.sprzedany ? 'Cofnij' : '✓ Sprzedany'}</button>
             <button class="btn btn-edit" onclick="openDrawer(${k.id})" title="Edytuj notatkę">✎</button>
             <button class="btn btn-del" onclick="askDel(${k.id})">✕</button>
