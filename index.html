@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaski — Targi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f0; --surface: #ffffff; --surface2: #f0ede8;
+    --border: rgba(0,0,0,0.10); --border-mid: rgba(0,0,0,0.20);
+    --text: #1a1a18; --text-muted: #6b6b66; --text-light: #9a9a94;
+    --accent-bg: #e8f0ec; --accent-text: #1a3a2a;
+    --green: #16a34a; --green-bg: #dcfce7; --green-text: #14532d;
+    --red: #dc2626; --red-bg: #fee2e2; --red-text: #7f1d1d;
+    --amber-bg: #fef3c7; --amber-text: #78350f;
+    --blue-bg: #dbeafe; --blue-text: #1e3a5f;
+    --orange-bg: #ffedd5; --orange-text: #7c2d12;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  :root {
+    --bg: #141412; --surface: #1e1e1c; --surface2: #2a2a28;
+    --border: rgba(255,255,255,0.08); --border-mid: rgba(255,255,255,0.18);
+    --text: #f0ede8; --text-muted: #9a9a94; --text-light: #6b6b66;
+    --accent-bg: #14291e; --accent-text: #4ade80;
+    --green: #4ade80; --green-bg: #14291e; --green-text: #86efac;
+    --red: #f87171; --red-bg: #2a1414; --red-text: #fca5a5;
+    --amber-bg: #292014; --amber-text: #fcd34d;
+    --blue-bg: #141e2a; --blue-text: #93c5fd;
+    --orange-bg: #2a1a0e; --orange-text: #fdba74;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; }
+
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; gap: 12px; }
+  .logo { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); transition: background 0.3s; }
+  .logo-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
+  .logo-dot.offline { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .sync-status { font-size: 11px; color: var(--text-light); display: flex; align-items: center; gap: 5px; }
+  .sync-status.err { color: var(--red); }
+
+  /* Config banner */
+  .config-banner { background: var(--orange-bg); border-bottom: 1px solid rgba(0,0,0,0.08); padding: 10px 20px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--orange-text); }
+  .config-banner a { color: inherit; font-weight: 600; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; text-align: center; }
+  .stat-num { font-size: 28px; font-weight: 600; letter-spacing: -0.5px; line-height: 1; margin-bottom: 4px; }
+  .stat-num.green { color: var(--green); } .stat-num.red { color: var(--red); }
+  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Add form */
+  .add-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .section-title { font-size: 11px; font-weight: 500; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .form-row2 { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+  input[type=text] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 14px; color: var(--text); font-family: inherit; outline: none; transition: border-color 0.15s; }
+  input[type=text]:focus { border-color: var(--border-mid); background: var(--surface); }
+  input::placeholder { color: var(--text-light); }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); font-family: inherit; transition: opacity 0.15s, transform 0.1s; white-space: nowrap; background: var(--surface); color: var(--text); }
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn-primary { background: var(--accent-bg); color: var(--accent-text); border-color: transparent; padding: 9px 20px; font-size: 14px; }
+  .btn-sell { background: var(--green-bg); color: var(--green-text); border-color: transparent; padding: 6px 12px; font-size: 12px; }
+  .btn-undo { background: var(--surface2); color: var(--text-muted); border-color: transparent; padding: 6px 12px; font-size: 12px; }
+  .btn-del { background: transparent; color: var(--text-light); border-color: transparent; padding: 6px 8px; font-size: 14px; }
+  .btn-del:hover { color: var(--red); }
+  .btn-edit { background: transparent; color: var(--text-light); border-color: transparent; padding: 6px 8px; font-size: 15px; }
+  .btn-edit:hover { color: var(--text); }
+
+  /* Export */
+  .export-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); align-items: center; }
+  .export-bar span { font-size: 12px; color: var(--text-muted); margin-right: 4px; }
+  .btn-export { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; color: var(--text-muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .btn-export:hover { color: var(--text); border-color: var(--border-mid); }
+
+  /* Filters */
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px; font-size: 13px; cursor: pointer; color: var(--text-muted); font-family: inherit; transition: all 0.15s; }
+  .filter-btn.active { background: var(--text); color: var(--surface); border-color: var(--text); }
+  .search-wrap { margin-left: auto; position: relative; }
+  .search-wrap input { padding-left: 28px; width: 170px; }
+  .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 13px; pointer-events: none; }
+  .filter-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+  .filter-row { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .filter-label { font-size: 11px; font-weight: 500; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; min-width: 52px; flex-shrink: 0; }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
+  .kolor-btn { display: inline-flex; align-items: center; gap: 6px; }
+  .kolor-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.15); flex-shrink: 0; }
+
+  /* Cards */
+  .karton-group { margin-bottom: 24px; }
+  .karton-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 0 2px; }
+  .karton-badge { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 600; }
+  .karton-badge.highlight { background: var(--amber-bg); color: var(--amber-text); border-color: transparent; font-size: 13px; padding: 4px 14px; }
+  .karton-hint { font-size: 11px; color: var(--amber-text); font-weight: 500; }
+  .karton-count { font-size: 12px; color: var(--text-light); }
+  .kask-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 6px; transition: border-color 0.2s, background 0.2s, opacity 0.2s; }
+  .kask-card.expo { background: var(--green-bg); border-color: var(--green); }
+  .kask-card.sold { background: var(--red-bg); border-color: var(--red); opacity: 0.75; }
+  .kask-card.reserved { background: var(--amber-bg); border-color: #d97706; }
+  .kask-card.expo .kask-emoji { background: rgba(255,255,255,0.5); }
+  .kask-card.sold .kask-emoji { background: rgba(255,255,255,0.3); }
+  .kask-card.reserved .kask-emoji { background: rgba(255,255,255,0.5); }
+  .kask-emoji { font-size: 20px; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-radius: var(--radius-sm); flex-shrink: 0; }
+  .kask-body { flex: 1; min-width: 0; }
+  .kask-label { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0; line-height: 1.3; margin-bottom: 2px; }
+  .label-model { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; color: var(--text); white-space: nowrap; }
+  .label-sep { font-size: 13px; color: var(--text-light); margin: 0 5px; }
+  .label-kolor { font-size: 13px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.3px; }
+  .label-rozmiar { font-size: 13px; font-weight: 600; color: var(--text); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 0px 6px; margin-left: 2px; }
+  .kask-card.sold .label-model { text-decoration: line-through; color: var(--red-text); }
+  .kask-card.sold .label-kolor, .kask-card.sold .label-rozmiar { opacity: 0.6; }
+  .kask-card.expo .label-model { color: var(--green-text); }
+  .kask-card.expo .label-rozmiar { background: rgba(255,255,255,0.5); }
+  .kask-card.reserved .label-model { color: var(--amber-text); }
+  .kask-card.reserved .label-rozmiar { background: rgba(255,255,255,0.5); }
+  .tag-reserved { background: var(--amber-bg); color: var(--amber-text); }
+  .btn-reserve { background: var(--surface2); color: var(--text-muted); border-color: transparent; padding: 6px 12px; font-size: 12px; }
+  .btn-reserve.active { background: var(--amber-bg); color: var(--amber-text); border-color: transparent; }
+  .btn-expo { background: var(--surface2); color: var(--text-muted); border-color: transparent; padding: 6px 12px; font-size: 12px; }
+  .btn-expo.active { background: var(--green-bg); color: var(--green-text); border-color: transparent; }
+  .kask-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .tag-r { background: var(--blue-bg); color: var(--blue-text); }
+  .tag-c { background: var(--green-bg); color: var(--green-text); }
+  .tag-n { background: var(--amber-bg); color: var(--amber-text); }
+  .tag-sold { background: var(--surface2); color: var(--text-light); }
+  .tag-expo { background: var(--green-bg); color: var(--green-text); }
+  .kask-actions { display: flex; gap: 4px; align-items: center; }
+
+  /* Loading / empty */
+  .empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--text-muted); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: var(--surface); padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 500; z-index: 300; transition: transform 0.25s; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); padding: 20px; width: 100%; max-width: 380px; border: 1px solid var(--border); }
+  .modal h3 { font-size: 15px; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: var(--text-muted); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .btn-confirm-del { background: var(--red-bg); color: var(--red-text); border-color: transparent; }
+
+  /* Drawer */
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-radius: 16px 16px 0 0; border-top: 1px solid var(--border); padding: 0 0 env(safe-area-inset-bottom,16px); z-index: 201; transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); max-width: 720px; margin: 0 auto; }
+  .drawer.open { transform: translateY(0); }
+  .drawer-handle { width: 36px; height: 4px; background: var(--border-mid); border-radius: 2px; margin: 10px auto 0; }
+  .drawer-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 14px 18px 0; gap: 12px; }
+  .drawer-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .drawer-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .drawer-close { background: var(--surface2); border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 13px; cursor: pointer; color: var(--text-muted); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .drawer-body { padding: 14px 18px 20px; }
+  .drawer-body label { display: block; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .drawer-body textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-size: 14px; color: var(--text); font-family: inherit; outline: none; resize: none; line-height: 1.5; transition: border-color 0.15s; }
+  .drawer-body textarea:focus { border-color: var(--border-mid); background: var(--surface); }
+
+  @media (max-width: 520px) {
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .search-wrap input { width: 130px; }
+    header { padding: 10px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ⚠️ KONFIGURACJA — wklej swoje klucze Supabase poniżej -->
+<script>
+  const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ...
+</script>
+
+<div id="config-banner" style="display:none" class="config-banner">
+  ⚠️ Nie skonfigurowano Supabase — dane nie są synchronizowane. <a href="#" onclick="showConfigHelp()">Co zrobić?</a>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot" id="dot"></div>
+    Kaski — Targi
+  </div>
+  <div class="sync-status" id="sync-status">łączenie...</div>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="add-card">
+    <div class="section-title">Dodaj kask</div>
+    <div class="form-grid">
+      <div><label>Model</label><div style="position:relative;display:flex;align-items:center"><span id="ns-prefix" style="position:absolute;left:10px;font-size:14px;font-weight:600;color:var(--text-muted);pointer-events:none;user-select:none">NS</span><input type="text" id="inp-nazwa" placeholder="9, 2 MIG, Carbon..." style="padding-left:30px" oninput="enforceNS(this)" onkeydown="handleNazwaKey(event)"></div></div>
+      <div><label>Kolor</label><input type="text" id="inp-kolor" placeholder="FLUO YELLOW" onkeydown="if(event.key==='Enter')dodaj()" oninput="this.value=this.value.toUpperCase()"></div>
+      <div><label>Rozmiar</label><input type="text" id="inp-rozmiar" placeholder="XL" onkeydown="if(event.key==='Enter')dodaj()"></div>
+      <div><label>Karton</label><input type="text" id="inp-karton" placeholder="A1" onkeydown="if(event.key==='Enter')dodaj()"></div>
+    </div>
+    <div class="form-row2">
+      <div><label>Notatka</label><input type="text" id="inp-nota" placeholder="opcjonalnie: rysa, brakuje podszewki..." onkeydown="if(event.key==='Enter')dodaj()"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" id="btn-dodaj" onclick="dodaj()">+ Dodaj</button></div>
+    </div>
+  </div>
+
+  <div class="filter-block">
+    <div class="filter-row">
+      <span class="filter-label">Status</span>
+      <div class="filter-chips" id="chips-status">
+        <button class="filter-btn active" onclick="setFilter('wszystkie',this,'status')">Wszystkie</button>
+        <button class="filter-btn" onclick="setFilter('dostepne',this,'status')">✓ Dostępne</button>
+        <button class="filter-btn" onclick="setFilter('zarezerwowane',this,'status')">⏳ Zarezerwowane</button>
+        <button class="filter-btn" onclick="setFilter('sprzedane',this,'status')">Sprzedane</button>
+      </div>
+    </div>
+    <div class="filter-row" id="row-model">
+      <span class="filter-label">Model</span>
+      <div class="filter-chips" id="chips-model"></div>
+    </div>
+    <div class="filter-row" id="row-rozmiar">
+      <span class="filter-label">Rozmiar</span>
+      <div class="filter-chips" id="chips-rozmiar"></div>
+    </div>
+    <div class="filter-row" id="row-kolor">
+      <span class="filter-label">Kolor</span>
+      <div class="filter-chips" id="chips-kolor"></div>
+    </div>
+    <div class="filter-row" style="border-bottom:none;padding-bottom:0">
+      <span class="filter-label">Szukaj</span>
+      <div style="flex:1;position:relative">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="search" placeholder="dowolna fraza..." oninput="render()" style="width:100%;padding-left:28px">
+      </div>
+    </div>
+  </div>
+
+  <div id="lista"><div class="empty"><div class="spinner"></div><br>Ładowanie...</div></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="modal-del">
+  <div class="modal">
+    <h3>Usunąć ten kask?</h3>
+    <p id="modal-del-name"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">Anuluj</button>
+      <button class="btn btn-confirm-del" onclick="confirmDel()">Usuń</button>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-title" id="drawer-title"></div>
+      <div class="drawer-sub" id="drawer-sub"></div>
+    </div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <label>Notatka</label>
+    <textarea id="drawer-nota" rows="3" placeholder="np. rysa na wizjerze, brakuje podszewki, demo..."></textarea>
+    <button class="btn btn-primary" style="width:100%;margin-top:10px;justify-content:center" onclick="saveDrawer()">Zapisz</button>
+  </div>
+</div>
+
+<script>
+// ─── Init Supabase ───────────────────────────────────────────────
+const configured = SUPABASE_URL !== 'WKLEJ_TUTAJ_PROJECT_URL' && SUPABASE_ANON !== 'WKLEJ_TUTAJ_ANON_KEY';
+let sb = null;
+
+if (configured) {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+} else {
+  document.getElementById('config-banner').style.display = 'flex';
+  setStatus('offline', 'brak konfiguracji');
+}
+
+// ─── State ───────────────────────────────────────────────────────
+let kaski = [];
+let filtr = 'wszystkie';
+let filtrModel = 'wszystkie';
+let filtrRozmiar = 'wszystkie';
+let filtrKolor = 'wszystkie';
+let pendingDelId = null;
+
+// ─── Status helpers ──────────────────────────────────────────────
+function setStatus(state, text) {
+  const dot = document.getElementById('dot');
+  const el = document.getElementById('sync-status');
+  dot.className = 'logo-dot' + (state === 'syncing' ? ' syncing' : state === 'offline' ? ' offline' : '');
+  el.className = 'sync-status' + (state === 'offline' ? ' err' : '');
+  el.textContent = text;
+}
+
+function toast(msg, dur = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ─── Load & real-time sync ───────────────────────────────────────
+async function load() {
+  if (!sb) { render(); return; }
+  setStatus('syncing', 'ładowanie...');
+  const { data, error } = await sb.from('kaski').select('*').order('created_at', { ascending: true });
+  if (error) { setStatus('offline', 'błąd połączenia'); console.error(error); render(); return; }
+  kaski = data;
+  setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  render();
+
+  // Real-time — nasłuchuj zmian z innych urządzeń
+  sb.channel('kaski-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'kaski' }, handleRealtime)
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') setStatus('ok', 'na żywo ✓');
+    });
+}
+
+function handleRealtime(payload) {
+  const { eventType, new: row, old } = payload;
+  if (eventType === 'INSERT') {
+    if (!kaski.find(k => k.id === row.id)) kaski.push(row);
+  } else if (eventType === 'UPDATE') {
+    const i = kaski.findIndex(k => k.id === row.id);
+    if (i !== -1) kaski[i] = row; else kaski.push(row);
+  } else if (eventType === 'DELETE') {
+    kaski = kaski.filter(k => k.id !== old.id);
+  }
+  setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  render();
+}
+
+function fmtTime() {
+  return new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── CRUD ────────────────────────────────────────────────────────
+async function dodaj() {
+  const nazwa  = 'NS' + document.getElementById('inp-nazwa').value.trim().toUpperCase();
+  const kolor  = document.getElementById('inp-kolor').value.trim().toUpperCase();
+  const rozmiar = document.getElementById('inp-rozmiar').value.trim().toUpperCase();
+  const karton = document.getElementById('inp-karton').value.trim().toUpperCase();
+  const nota   = document.getElementById('inp-nota').value.trim();
+  if (!document.getElementById('inp-nazwa').value.trim()) { document.getElementById('inp-nazwa').focus(); return; }
+  if (!karton) { document.getElementById('inp-karton').focus(); return; }
+
+  const btn = document.getElementById('btn-dodaj');
+  btn.disabled = true;
+
+  const record = { nazwa, kolor, karton, rozmiar, nota, sprzedany: false, ekspozycja: false };
+
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const { data, error } = await sb.from('kaski').insert(record).select().single();
+    if (error) { toast('❌ Błąd zapisu: ' + error.message); setStatus('offline', 'błąd'); btn.disabled = false; return; }
+    if (!kaski.find(k => k.id === data.id)) kaski.push(data);
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  } else {
+    record.id = Date.now();
+    record.created_at = new Date().toISOString();
+    kaski.push(record);
+  }
+
+  ['inp-nazwa','inp-kolor','inp-karton','inp-rozmiar','inp-nota'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inp-nazwa').focus();
+  btn.disabled = false;
+  toast('✓ Dodano kask');
+  render();
+}
+
+async function toggleSell(id) {
+  const k = kaski.find(x => x.id === id);
+  if (!k) return;
+  const nowSprzedany = !k.sprzedany;
+  k.sprzedany = nowSprzedany;
+  if (nowSprzedany) { k.ekspozycja = false; k.zarezerwowany = false; }
+  render();
+
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const { error } = await sb.from('kaski').update({ sprzedany: nowSprzedany, ekspozycja: k.ekspozycja, zarezerwowany: false }).eq('id', id);
+    if (error) { k.sprzedany = !nowSprzedany; toast('❌ Błąd: ' + error.message); render(); setStatus('offline','błąd'); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast(nowSprzedany ? '💰 Oznaczono jako sprzedany' : '↩ Cofnięto sprzedaż');
+}
+
+async function toggleEkspozycja(id) {
+  const k = kaski.find(x => x.id === id);
+  if (!k) return;
+  const nowExpo = !k.ekspozycja;
+  k.ekspozycja = nowExpo;
+  if (nowExpo) k.sprzedany = false; // ekspozycja zdejmuje sprzedany
+  render();
+
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const { error } = await sb.from('kaski').update({ ekspozycja: nowExpo, sprzedany: k.sprzedany }).eq('id', id);
+    if (error) { k.ekspozycja = !nowExpo; toast('❌ Błąd: ' + error.message); render(); setStatus('offline','błąd'); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast(nowExpo ? '🟢 Na ekspozycji' : '↩ Zdjęto z ekspozycji');
+}
+
+function askDel(id) {
+  const k = kaski.find(x => x.id === id);
+  pendingDelId = id;
+  document.getElementById('modal-del-name').textContent = k ? k.nazwa : '';
+  document.getElementById('modal-del').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-del').classList.remove('open'); pendingDelId = null; }
+
+async function confirmDel() {
+  if (pendingDelId === null) return;
+  const id = pendingDelId;
+  closeModal();
+  kaski = kaski.filter(x => x.id !== id);
+  render();
+
+  if (sb) {
+    setStatus('syncing', 'usuwanie...');
+    const { error } = await sb.from('kaski').delete().eq('id', id);
+    if (error) { toast('❌ Błąd usuwania'); setStatus('offline','błąd'); load(); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast('🗑 Usunięto');
+}
+
+// ─── Render ──────────────────────────────────────────────────────
+function setFilter(val, btn, group) {
+  if (group === 'status') filtr = val;
+  else if (group === 'model') filtrModel = val;
+  else if (group === 'rozmiar') filtrRozmiar = val;
+  else if (group === 'kolor') filtrKolor = val;
+  const container = btn.closest('.filter-chips, #chips-status');
+  container.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function buildChips() {
+  const modele = [...new Set(kaski.map(k => k.nazwa).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pl'));
+  const rozmiary = [...new Set(kaski.map(k => k.rozmiar).filter(Boolean))].sort((a,b) => {
+    const order = ['XXS','XS','S','M','L','XL','XXL','2XL','3XL'];
+    const ai = order.indexOf(a.toUpperCase()), bi = order.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1; if (bi !== -1) return 1;
+    return a.localeCompare(b,'pl');
+  });
+  const kolory = [...new Set(kaski.map(k => (k.kolor||'').trim().toUpperCase()).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pl'));
+
+  const makeBtn = (val, label, active, group) =>
+    `<button class="filter-btn${active?' active':''}" onclick="setFilter('${esc(val)}',this,'${group}')">${esc(label)}</button>`;
+
+  const makeKolorBtn = (val, active) => {
+    const dot = kolorDot(val);
+    return `<button class="filter-btn kolor-btn${active?' active':''}" onclick="setFilter('${esc(val)}',this,'kolor')">
+      <span class="kolor-dot" style="background:${dot}"></span>${esc(val)}
+    </button>`;
+  };
+
+  document.getElementById('chips-model').innerHTML =
+    makeBtn('wszystkie','Wszystkie', filtrModel==='wszystkie', 'model') +
+    modele.map(m => makeBtn(m, m, filtrModel===m, 'model')).join('');
+
+  document.getElementById('chips-rozmiar').innerHTML =
+    makeBtn('wszystkie','Wszystkie', filtrRozmiar==='wszystkie', 'rozmiar') +
+    rozmiary.map(r => makeBtn(r, r, filtrRozmiar===r, 'rozmiar')).join('');
+
+  document.getElementById('chips-kolor').innerHTML =
+    makeBtn('wszystkie','Wszystkie', filtrKolor==='wszystkie', 'kolor') +
+    kolory.map(k => makeKolorBtn(k, filtrKolor===k)).join('');
+}
+
+function kolorDot(nazwa) {
+  const n = nazwa.toUpperCase();
+  if (n.includes('BLACK') || n.includes('CZARN')) return '#1a1a1a';
+  if (n.includes('WHITE') || n.includes('BIAL') || n.includes('BIAŁ')) return '#e8e8e8';
+  if (n.includes('RED') || n.includes('CZERW')) return '#e53e3e';
+  if (n.includes('BLUE') || n.includes('NIEB') || n.includes('GRAN')) return '#3182ce';
+  if (n.includes('GREEN') || n.includes('ZIEL')) return '#38a169';
+  if (n.includes('YELLOW') || n.includes('ŻÓŁT') || n.includes('ZOLT') || n.includes('FLUO')) return '#ecc94b';
+  if (n.includes('ORANGE') || n.includes('POMAR')) return '#ed8936';
+  if (n.includes('GREY') || n.includes('GRAY') || n.includes('SZAR')) return '#a0aec0';
+  if (n.includes('SILVER') || n.includes('SREBRN')) return '#cbd5e0';
+  if (n.includes('PINK') || n.includes('RÓŻ') || n.includes('ROZ')) return '#ed64a6';
+  if (n.includes('PURPLE') || n.includes('FIOLET')) return '#805ad5';
+  if (n.includes('BROWN') || n.includes('BRĄZ') || n.includes('BRAZ')) return '#a0522d';
+  if (n.includes('GOLD') || n.includes('ZŁOT') || n.includes('ZLOT')) return '#d4a017';
+  return '#888';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  buildChips();
+  const q = document.getElementById('search').value.toLowerCase();
+  let lista = kaski.filter(k => {
+    if (filtr === 'dostepne' && (k.sprzedany || k.zarezerwowany)) return false;
+    if (filtr === 'sprzedane' && !k.sprzedany) return false;
+    if (filtr === 'zarezerwowane' && !k.zarezerwowany) return false;
+    if (filtrModel !== 'wszystkie' && k.nazwa !== filtrModel) return false;
+    if (filtrRozmiar !== 'wszystkie' && (k.rozmiar||'').toUpperCase() !== filtrRozmiar.toUpperCase()) return false;
+    if (filtrKolor !== 'wszystkie' && (k.kolor||'').trim().toUpperCase() !== filtrKolor.toUpperCase()) return false;
+    if (q) {
+      const words = q.trim().split(/\s+/);
+      const haystack = [k.nazwa, k.kolor||'', k.rozmiar||'', k.karton||'', k.nota||''].map(s => s.toLowerCase());
+      const match = words.every(w => haystack.some(field => field.includes(w)));
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  // wyróżnij wynik jeśli filtrujemy po modelu+rozmiarze
+  const szukamy = filtrModel !== 'wszystkie' || filtrRozmiar !== 'wszystkie' || q;
+
+  const wsz = kaski.length, dos = kaski.filter(k=>!k.sprzedany&&!k.zarezerwowany).length, spr = kaski.filter(k=>k.sprzedany).length;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="stat-num">${wsz}</div><div class="stat-label">Łącznie</div></div>
+    <div class="stat"><div class="stat-num green">${dos}</div><div class="stat-label">Dostępnych</div></div>
+    <div class="stat"><div class="stat-num red">${spr}</div><div class="stat-label">Sprzedanych</div></div>`;
+
+  const el = document.getElementById('lista');
+  if (!lista.length) { el.innerHTML = '<div class="empty">🪖<br><br>Brak wyników</div>'; return; }
+
+  // gdy szukamy — pokaż karton jako główny wyróżnik każdej karty
+  const kartony = {};
+  lista.forEach(k => { if (!kartony[k.karton]) kartony[k.karton]=[]; kartony[k.karton].push(k); });
+
+  el.innerHTML = Object.entries(kartony).sort(([a],[b])=>a.localeCompare(b,'pl')).map(([karton,items]) => `
+    <div class="karton-group">
+      <div class="karton-header">
+        <span class="karton-badge${szukamy?' highlight':''}">📦 ${esc(karton)}</span>
+        <span class="karton-count">${items.length} szt.</span>
+        ${szukamy ? `<span class="karton-hint">← tutaj szukaj</span>` : ''}
+      </div>
+      ${items.map(k => {
+        const stan = k.sprzedany ? 'sold' : k.zarezerwowany ? 'reserved' : k.ekspozycja ? 'expo' : '';
+        const kolor = k.kolor || k.cena || '';
+        return `
+        <div class="kask-card ${stan}">
+          <div class="kask-emoji">🪖</div>
+          <div class="kask-body">
+            <div class="kask-label">
+              <span class="label-model">${esc(k.nazwa)}</span>
+              ${kolor ? `<span class="label-sep">·</span><span class="label-kolor">${esc(kolor)}</span>` : ''}
+              ${k.rozmiar ? `<span class="label-sep">·</span><span class="label-rozmiar">${esc(k.rozmiar)}</span>` : ''}
+            </div>
+            <div class="kask-tags">
+              ${k.nota ? `<span class="tag tag-n">⚠ ${esc(k.nota)}</span>` : ''}
+              ${k.ekspozycja ? '<span class="tag tag-expo">ekspozycja</span>' : ''}
+              ${k.zarezerwowany ? '<span class="tag tag-reserved">⏳ rezerwacja</span>' : ''}
+              ${k.sprzedany ? '<span class="tag tag-sold">sprzedany</span>' : ''}
+            </div>
+          </div>
+          <div class="kask-actions">
+            <button class="btn btn-expo${k.ekspozycja?' active':''}" onclick="toggleEkspozycja(${k.id})">🟢 Ekspozycja</button>
+            <button class="btn btn-reserve${k.zarezerwowany?' active':''}" onclick="toggleRezerwacja(${k.id})">⏳ ${k.zarezerwowany?'Zarezerwowany':'Rezerwuj'}</button>
+            <button class="btn ${k.sprzedany?'btn-undo':'btn-sell'}" onclick="toggleSell(${k.id})">${k.sprzedany ? 'Cofnij' : '✓ Sprzedany'}</button>
+            <button class="btn btn-edit" onclick="openDrawer(${k.id})" title="Edytuj notatkę">✎</button>
+            <button class="btn btn-del" onclick="askDel(${k.id})">✕</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+// ─── Export ──────────────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['ID','Model','Kolor','Rozmiar','Karton','Notatka','Status']];
+  kaski.forEach(k => rows.push([k.id, k.nazwa, k.kolor||'', k.rozmiar, k.karton, k.nota, k.sprzedany?'Sprzedany':k.ekspozycja?'Ekspozycja':'Dostępny']));
+  const csv = rows.map(r => r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'kaski-targi.csv'; a.click();
+}
+
+function drukuj() {
+  const dos = kaski.filter(k=>!k.sprzedany), spr = kaski.filter(k=>k.sprzedany);
+  const tbl = arr => `<table><tr><th>Karton</th><th>Model</th><th>Kolor</th><th>Rozmiar</th><th>Notatka</th></tr>
+    ${arr.map(k=>`<tr><td>${k.karton}</td><td>${k.nazwa}</td><td>${k.kolor||''}</td><td>${k.rozmiar||''}</td><td>${k.nota||''}</td></tr>`).join('')}</table>`;
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Kaski</title>
+    <style>body{font-family:sans-serif;padding:20px;font-size:13px}h2{margin:16px 0 8px}
+    table{border-collapse:collapse;width:100%;margin-bottom:20px}th,td{border:1px solid #ccc;padding:6px 10px}th{background:#f0f0f0}
+    .g{color:#16a34a}.r{color:#dc2626}</style></head><body>
+    <h1>Kaski — Targi</h1><p style="color:#666;font-size:12px">${new Date().toLocaleString('pl-PL')}</p>
+    <h2 class="g">Dostępne (${dos.length})</h2>${tbl(dos)}
+    <h2 class="r">Sprzedane (${spr.length})</h2>${tbl(spr)}
+    </body></html>`);
+  w.document.close(); w.print();
+}
+
+function showConfigHelp() {
+  alert('1. Wejdź na supabase.com i utwórz projekt\n2. W pliku HTML wklej swój Project URL i anon key\n3. W SQL Editor uruchom skrypt tworzący tabelę kaski');
+}
+
+// ─── Drawer (edycja notatki) ─────────────────────────────────────
+let drawerKaskId = null;
+
+function openDrawer(id) {
+  const k = kaski.find(x => x.id === id);
+  if (!k) return;
+  drawerKaskId = id;
+  const kolor = k.kolor || k.cena || '';
+  document.getElementById('drawer-title').textContent = k.nazwa + (kolor ? ' · ' + kolor : '');
+  document.getElementById('drawer-sub').textContent = [k.rozmiar, k.karton].filter(Boolean).join(' · ');
+  document.getElementById('drawer-nota').value = k.nota || '';
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+  setTimeout(() => document.getElementById('drawer-nota').focus(), 300);
+}
+
+function closeDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  drawerKaskId = null;
+}
+
+async function saveDrawer() {
+  if (drawerKaskId === null) return;
+  const k = kaski.find(x => x.id === drawerKaskId);
+  if (!k) return;
+  const nota = document.getElementById('drawer-nota').value.trim();
+  k.nota = nota;
+  closeDrawer();
+  render();
+
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const { error } = await sb.from('kaski').update({ nota }).eq('id', k.id);
+    if (error) { toast('❌ Błąd zapisu'); setStatus('offline','błąd'); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast('✓ Notatka zapisana');
+}
+
+async function toggleRezerwacja(id) {
+  const k = kaski.find(x => x.id === id);
+  if (!k) return;
+  const nowRez = !k.zarezerwowany;
+  k.zarezerwowany = nowRez;
+  if (nowRez) { k.sprzedany = false; k.ekspozycja = false; }
+  render();
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const { error } = await sb.from('kaski').update({ zarezerwowany: nowRez, sprzedany: k.sprzedany, ekspozycja: k.ekspozycja }).eq('id', id);
+    if (error) { k.zarezerwowany = !nowRez; toast('❌ Błąd'); render(); setStatus('offline','błąd'); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast(nowRez ? '⏳ Zarezerwowano' : '↩ Cofnięto rezerwację');
+}
+
+// ─── NS prefix ───────────────────────────────────────────────────
+function enforceNS(input) {
+  // nie pozwól na pustą wartość zaczynającą się od NS — tu user wpisuje tylko suffix
+  // nic do roboty, prefix jest osobnym elementem
+}
+function handleNazwaKey(e) {
+  if (e.key === 'Enter') dodaj();
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────
+document.getElementById('modal-del').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDrawer(); } });
+load();
+</script>
+</body>
+</html>
