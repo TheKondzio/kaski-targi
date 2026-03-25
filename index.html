@@ -217,8 +217,8 @@
 </style>
 </head>
 <body>
-<script> const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co 
- const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ... 
+
+<script> const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ... 
 </script>
 
 <div id="config-banner" style="display:none" class="config-banner">
@@ -420,8 +420,6 @@ async function dodaj() {
   }
 
   ['inp-nazwa','inp-kolor','inp-karton','inp-rozmiar','inp-nota'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('add-card').style.display = 'none';
-  document.getElementById('add-arrow').classList.remove('open');
   document.getElementById('inp-nazwa').focus();
   btn.disabled = false;
   toast('✓ Dodano kask');
