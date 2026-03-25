@@ -218,8 +218,12 @@
 </head>
 <body>
 
-<script> const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ... 
+<!-- ⚠️ KONFIGURACJA — wklej swoje klucze Supabase poniżej -->
+<script>
+  const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ...
 </script>
+
 
 <div id="config-banner" style="display:none" class="config-banner">
   ⚠️ Nie skonfigurowano Supabase — dane nie są synchronizowane. <a href="#" onclick="showConfigHelp()">Co zrobić?</a>
@@ -236,15 +240,8 @@
 <main>
   <div class="stats" id="stats"></div>
 
-  <div class="top-actions">
-    <button class="add-toggle" id="add-toggle" onclick="toggleForm()">
-      <span>+ Dodaj kask</span>
-      <span class="add-toggle-arrow" id="add-arrow">▾</span>
-    </button>
-    <button class="btn-export-top" onclick="exportCSV()" title="Eksport do Excela">📥 Excel</button>
-  </div>
-
-  <div class="add-card" id="add-card" style="display:none">
+  <div class="add-card">
+    <div class="section-title">Dodaj kask</div>
     <div class="form-grid">
       <div><label>Model</label><div style="position:relative;display:flex;align-items:center"><span id="ns-prefix" style="position:absolute;left:10px;font-size:14px;font-weight:600;color:var(--text-muted);pointer-events:none;user-select:none">NS</span><input type="text" id="inp-nazwa" placeholder="9, 2 MIG, Carbon..." style="padding-left:30px" oninput="enforceNS(this)" onkeydown="handleNazwaKey(event)"></div></div>
       <div><label>Kolor</label><input type="text" id="inp-kolor" placeholder="FLUO YELLOW" onkeydown="if(event.key==='Enter')dodaj()" oninput="this.value=this.value.toUpperCase()"></div>
