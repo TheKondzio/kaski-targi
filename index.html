@@ -171,7 +171,14 @@
   .drawer-body textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-size: 14px; color: var(--text); font-family: inherit; outline: none; resize: none; line-height: 1.5; transition: border-color 0.15s; }
   .drawer-body textarea:focus { border-color: var(--border-mid); background: var(--surface); }
 
-  /* Tablet */
+  .add-toggle { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .add-toggle:hover { background: var(--surface2); }
+  .add-toggle-arrow { font-size: 16px; color: var(--text-muted); transition: transform 0.2s; }
+  .add-toggle-arrow.open { transform: rotate(180deg); }
+  .add-card { margin-bottom: 8px; }
+  .top-actions { display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch; }
+  .btn-export-top { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s; }
+  .btn-export-top:hover { background: var(--surface2); color: var(--text); }
   @media (max-width: 700px) {
     main { padding: 14px 12px 60px; }
     .form-grid { grid-template-columns: 1fr 1fr; }
@@ -211,10 +218,7 @@
 </head>
 <body>
 
-<script>
-  const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ...
-</script>
+<script> const SUPABASE_URL  = 'https://apqbzdlsgfnppuxzalpt.supabase.co';   // np. https://abcxyzabc.supabase.co const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwcWJ6ZGxzZ2ZucHB1eHphbHB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzE5MjMsImV4cCI6MjA4OTQwNzkyM30.HCvkpjYio-R0yEWif8xcJHA5AS8ZAAHJtCKwKKQVO2U';      // długi ciąg znaków zaczynający się od eyJ... </script>
 
 <div id="config-banner" style="display:none" class="config-banner">
   ⚠️ Nie skonfigurowano Supabase — dane nie są synchronizowane. <a href="#" onclick="showConfigHelp()">Co zrobić?</a>
@@ -231,8 +235,15 @@
 <main>
   <div class="stats" id="stats"></div>
 
-  <div class="add-card">
-    <div class="section-title">Dodaj kask</div>
+  <div class="top-actions">
+    <button class="add-toggle" id="add-toggle" onclick="toggleForm()">
+      <span>+ Dodaj kask</span>
+      <span class="add-toggle-arrow" id="add-arrow">▾</span>
+    </button>
+    <button class="btn-export-top" onclick="exportCSV()" title="Eksport do Excela">📥 Excel</button>
+  </div>
+
+  <div class="add-card" id="add-card" style="display:none">
     <div class="form-grid">
       <div><label>Model</label><div style="position:relative;display:flex;align-items:center"><span id="ns-prefix" style="position:absolute;left:10px;font-size:14px;font-weight:600;color:var(--text-muted);pointer-events:none;user-select:none">NS</span><input type="text" id="inp-nazwa" placeholder="9, 2 MIG, Carbon..." style="padding-left:30px" oninput="enforceNS(this)" onkeydown="handleNazwaKey(event)"></div></div>
       <div><label>Kolor</label><input type="text" id="inp-kolor" placeholder="FLUO YELLOW" onkeydown="if(event.key==='Enter')dodaj()" oninput="this.value=this.value.toUpperCase()"></div>
@@ -408,6 +419,8 @@ async function dodaj() {
   }
 
   ['inp-nazwa','inp-kolor','inp-karton','inp-rozmiar','inp-nota'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('add-card').style.display = 'none';
+  document.getElementById('add-arrow').classList.remove('open');
   document.getElementById('inp-nazwa').focus();
   btn.disabled = false;
   toast('✓ Dodano kask');
@@ -614,12 +627,24 @@ function render() {
 
 // ─── Export ──────────────────────────────────────────────────────
 function exportCSV() {
-  const rows = [['ID','Model','Kolor','Rozmiar','Karton','Notatka','Status']];
-  kaski.forEach(k => rows.push([k.id, k.nazwa, k.kolor||'', k.rozmiar, k.karton, k.nota, k.sprzedany?'Sprzedany':k.ekspozycja?'Ekspozycja':'Dostępny']));
-  const csv = rows.map(r => r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const rows = [['Karton','Model','Kolor','Rozmiar','Notatka','Status']];
+  kaski
+    .sort((a,b) => a.karton.localeCompare(b.karton,'pl'))
+    .forEach(k => rows.push([
+      k.karton,
+      k.nazwa,
+      k.kolor||'',
+      k.rozmiar||'',
+      k.nota||'',
+      k.sprzedany ? 'Sprzedany' : k.ekspozycja ? 'Ekspozycja' : 'Dostępny'
+    ]));
+  const csv = rows.map(r => r.map(c => `"${String(c||'').replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const data = new Date().toLocaleDateString('pl-PL').replace(/\./g,'-');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = 'kaski-targi.csv'; a.click();
+  a.download = `kaski-${data}.csv`;
+  a.click();
+  toast('📥 Plik pobrany — otwórz w Excelu');
 }
 
 function drukuj() {
@@ -696,6 +721,16 @@ async function toggleRezerwacja(id) {
     setStatus('ok', 'zsynchronizowano ' + fmtTime());
   }
   toast(nowRez ? '⏳ Zarezerwowano' : '↩ Cofnięto rezerwację');
+}
+
+// ─── Toggle formularza ───────────────────────────────────────────
+function toggleForm() {
+  const card = document.getElementById('add-card');
+  const arrow = document.getElementById('add-arrow');
+  const open = card.style.display === 'none';
+  card.style.display = open ? 'block' : 'none';
+  arrow.classList.toggle('open', open);
+  if (open) setTimeout(() => document.getElementById('inp-nazwa').focus(), 50);
 }
 
 // ─── NS prefix ───────────────────────────────────────────────────
