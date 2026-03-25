@@ -104,6 +104,9 @@
   .karton-badge.highlight { background: var(--amber-bg); color: var(--amber-text); border-color: transparent; font-size: 13px; padding: 4px 14px; }
   .karton-hint { font-size: 11px; color: var(--amber-text); font-weight: 500; }
   .karton-count { font-size: 12px; color: var(--text-light); }
+  .btn-karton-expo { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; margin-left: auto; transition: all 0.15s; white-space: nowrap; }
+  .btn-karton-expo:hover { border-color: var(--green); color: var(--green-text); }
+  .btn-karton-expo.active { background: var(--green-bg); border-color: var(--green); color: var(--green-text); }
   .kask-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 6px; transition: border-color 0.2s, background 0.2s, opacity 0.2s; }
   .kask-card.expo { background: var(--green-bg); border-color: var(--green); }
   .kask-card.sold { background: var(--red-bg); border-color: var(--red); opacity: 0.75; }
@@ -171,13 +174,14 @@
   .drawer-body textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; font-size: 14px; color: var(--text); font-family: inherit; outline: none; resize: none; line-height: 1.5; transition: border-color 0.15s; }
   .drawer-body textarea:focus { border-color: var(--border-mid); background: var(--surface); }
 
+  .top-actions { display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch; }
   .add-toggle { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 500; color: var(--text); cursor: pointer; font-family: inherit; transition: background 0.15s; }
   .add-toggle:hover { background: var(--surface2); }
-  .add-toggle-arrow { font-size: 16px; color: var(--text-muted); transition: transform 0.2s; }
+  .add-toggle-arrow { font-size: 16px; color: var(--text-muted); transition: transform 0.25s; }
   .add-toggle-arrow.open { transform: rotate(180deg); }
-  .add-card { margin-bottom: 8px; }
-  .top-actions { display: flex; gap: 8px; margin-bottom: 8px; align-items: stretch; }
-  .btn-export-top { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s; }
+  .add-card { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.3s ease, opacity 0.25s ease, margin 0.3s ease; margin-bottom: 0; }
+  .add-card.open { max-height: 400px; opacity: 1; margin-bottom: 8px; }
+  .btn-export-top { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s; }
   .btn-export-top:hover { background: var(--surface2); color: var(--text); }
   @media (max-width: 700px) {
     main { padding: 14px 12px 60px; }
@@ -239,8 +243,16 @@
 <main>
   <div class="stats" id="stats"></div>
 
-  <div class="add-card">
-    <div class="section-title">Dodaj kask</div>
+  <div class="top-actions">
+    <button class="add-toggle" id="add-toggle" onclick="toggleForm()">
+      <span>+ Dodaj kask</span>
+      <span class="add-toggle-arrow" id="add-arrow">▾</span>
+    </button>
+    <button class="btn-export-top" onclick="exportCSV()">📥 Excel</button>
+  </div>
+
+  <div class="add-card" id="add-card">
+    <div style="padding-top:2px">
     <div class="form-grid">
       <div><label>Model</label><div style="position:relative;display:flex;align-items:center"><span id="ns-prefix" style="position:absolute;left:10px;font-size:14px;font-weight:600;color:var(--text-muted);pointer-events:none;user-select:none">NS</span><input type="text" id="inp-nazwa" placeholder="9, 2 MIG, Carbon..." style="padding-left:30px" oninput="enforceNS(this)" onkeydown="handleNazwaKey(event)"></div></div>
       <div><label>Kolor</label><input type="text" id="inp-kolor" placeholder="FLUO YELLOW" onkeydown="if(event.key==='Enter')dodaj()" oninput="this.value=this.value.toUpperCase()"></div>
@@ -250,6 +262,7 @@
     <div class="form-row2">
       <div><label>Notatka</label><input type="text" id="inp-nota" placeholder="opcjonalnie: rysa, brakuje podszewki..." onkeydown="if(event.key==='Enter')dodaj()"></div>
       <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" id="btn-dodaj" onclick="dodaj()">+ Dodaj</button></div>
+    </div>
     </div>
   </div>
 
@@ -494,7 +507,7 @@ function setFilter(val, btn, group) {
 }
 
 function buildChips() {
-  const modele = [...new Set(kaski.map(k => k.nazwa).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pl'));
+  const modele = [...new Set(kaski.map(k => k.nazwa).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'pl', {numeric: true, sensitivity: 'base'}));
   const rozmiary = [...new Set(kaski.map(k => k.rozmiar).filter(Boolean))].sort((a,b) => {
     const order = ['XXS','XS','S','M','L','XL','XXL','2XL','3XL'];
     const ai = order.indexOf(a.toUpperCase()), bi = order.indexOf(b.toUpperCase());
@@ -584,12 +597,17 @@ function render() {
   const kartony = {};
   lista.forEach(k => { if (!kartony[k.karton]) kartony[k.karton]=[]; kartony[k.karton].push(k); });
 
-  el.innerHTML = Object.entries(kartony).sort(([a],[b])=>a.localeCompare(b,'pl')).map(([karton,items]) => `
+  el.innerHTML = Object.entries(kartony).sort(([a],[b]) => a.localeCompare(b, 'pl', {numeric: true, sensitivity: 'base'})).map(([karton,items]) => {
+    const wszyskoExpo = items.every(k => k.ekspozycja);
+    return `
     <div class="karton-group">
       <div class="karton-header">
         <span class="karton-badge${szukamy?' highlight':''}">📦 ${esc(karton)}</span>
         <span class="karton-count">${items.length} szt.</span>
         ${szukamy ? `<span class="karton-hint">← tutaj szukaj</span>` : ''}
+        <button class="btn-karton-expo${wszyskoExpo?' active':''}" onclick="toggleKartonExpo('${esc(karton)}')">
+          🟢 ${wszyskoExpo ? 'Zdejmij ekspozycję' : 'Cały karton na ekspozycję'}
+        </button>
       </div>
       ${items.map(k => {
         const stan = k.sprzedany ? 'sold' : k.ekspozycja ? 'expo' : '';
@@ -617,7 +635,8 @@ function render() {
           </div>
         </div>`;
       }).join('')}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ─── Export ──────────────────────────────────────────────────────
@@ -718,14 +737,29 @@ async function toggleRezerwacja(id) {
   toast(nowRez ? '⏳ Zarezerwowano' : '↩ Cofnięto rezerwację');
 }
 
+async function toggleKartonExpo(karton) {
+  const items = kaski.filter(k => k.karton === karton && !k.sprzedany);
+  if (!items.length) return;
+  const nowExpo = !items.every(k => k.ekspozycja);
+  items.forEach(k => { k.ekspozycja = nowExpo; if (nowExpo) k.sprzedany = false; });
+  render();
+  if (sb) {
+    setStatus('syncing', 'zapisywanie...');
+    const ids = items.map(k => k.id);
+    const { error } = await sb.from('kaski').update({ ekspozycja: nowExpo }).in('id', ids);
+    if (error) { toast('❌ Błąd'); setStatus('offline','błąd'); load(); return; }
+    setStatus('ok', 'zsynchronizowano ' + fmtTime());
+  }
+  toast(nowExpo ? `🟢 Karton ${karton} na ekspozycji` : `↩ Zdjęto karton ${karton} z ekspozycji`);
+}
+
 // ─── Toggle formularza ───────────────────────────────────────────
 function toggleForm() {
   const card = document.getElementById('add-card');
   const arrow = document.getElementById('add-arrow');
-  const open = card.style.display === 'none';
-  card.style.display = open ? 'block' : 'none';
+  const open = card.classList.toggle('open');
   arrow.classList.toggle('open', open);
-  if (open) setTimeout(() => document.getElementById('inp-nazwa').focus(), 50);
+  if (open) setTimeout(() => document.getElementById('inp-nazwa').focus(), 300);
 }
 
 // ─── NS prefix ───────────────────────────────────────────────────
