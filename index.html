@@ -158,6 +158,7 @@
   .modal p { font-size: 13px; color: var(--text-muted); }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   .btn-confirm-del { background: var(--red-bg); color: var(--red-text); border-color: transparent; }
+  .btn-confirm-sell { background: var(--green-bg); color: var(--green-text); border-color: transparent; }
 
   /* Drawer */
   .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 200; }
@@ -183,6 +184,20 @@
   .add-card.open { max-height: 400px; opacity: 1; margin-bottom: 8px; }
   .btn-export-top { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; white-space: nowrap; transition: background 0.15s; }
   .btn-export-top:hover { background: var(--surface2); color: var(--text); }
+  .view-tabs { display: flex; background: var(--surface2); border-radius: 8px; padding: 3px; gap: 2px; }
+  .view-tab { background: transparent; border: none; border-radius: 6px; padding: 5px 12px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .view-tab.active { background: var(--surface); color: var(--text); }
+  .expo-section-title { font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; padding: 0 2px; }
+  .expo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 24px; }
+  .expo-kolor-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .expo-kolor-card.ok { border-color: var(--green); background: var(--green-bg); }
+  .expo-kolor-card.brak { border-color: var(--red); background: var(--red-bg); }
+  .expo-kolor-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .expo-kolor-card.ok .expo-kolor-name { color: var(--green-text); }
+  .expo-kolor-card.brak .expo-kolor-name { color: var(--red-text); }
+  .expo-kolor-meta { font-size: 11px; color: var(--text-muted); }
+  .expo-kolor-card.ok .expo-kolor-meta { color: var(--green-text); opacity: 0.75; }
+  .expo-kolor-card.brak .expo-kolor-meta { color: var(--red-text); opacity: 0.75; }
   @media (max-width: 700px) {
     main { padding: 14px 12px 60px; }
     .form-grid { grid-template-columns: 1fr 1fr; }
@@ -237,11 +252,25 @@
     <div class="logo-dot" id="dot"></div>
     Kaski — Targi
   </div>
-  <div class="sync-status" id="sync-status">łączenie...</div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="view-tabs">
+      <button class="view-tab active" id="tab-lista" onclick="setView('lista')">Lista</button>
+      <button class="view-tab" id="tab-expo" onclick="setView('expo')">Ekspozycja</button>
+    </div>
+    <div class="sync-status" id="sync-status">łączenie...</div>
+  </div>
 </header>
 
 <main>
   <div class="stats" id="stats"></div>
+
+  <!-- Widok zestawienia ekspozycji -->
+  <div id="panel-expo" style="display:none">
+    <div id="expo-content"></div>
+  </div>
+
+  <!-- Widok główny -->
+  <div id="panel-lista">
 
   <div class="top-actions">
     <button class="add-toggle" id="add-toggle" onclick="toggleForm()">
@@ -297,6 +326,7 @@
   </div>
 
   <div id="lista"><div class="empty"><div class="spinner"></div><br>Ładowanie...</div></div>
+  </div><!-- /panel-lista -->
 </main>
 
 <div class="toast" id="toast"></div>
@@ -308,6 +338,17 @@
     <div class="modal-actions">
       <button class="btn" onclick="closeModal()">Anuluj</button>
       <button class="btn btn-confirm-del" onclick="confirmDel()">Usuń</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-sell">
+  <div class="modal">
+    <h3>Sprzedano kask?</h3>
+    <p id="modal-sell-name"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModalSell()">Anuluj</button>
+      <button class="btn btn-confirm-sell" onclick="confirmSell()">✓ Tak, sprzedany</button>
     </div>
   </div>
 </div>
@@ -435,21 +476,42 @@ async function dodaj() {
   render();
 }
 
-async function toggleSell(id) {
+let pendingSellId = null;
+
+function askSell(id) {
+  const k = kaski.find(x => x.id === id);
+  if (!k) return;
+  if (k.sprzedany) { doSell(id); return; } // cofnięcie — bez potwierdzenia
+  pendingSellId = id;
+  const kolor = k.kolor || '';
+  document.getElementById('modal-sell-name').textContent = k.nazwa + (kolor ? ' · ' + kolor : '') + (k.rozmiar ? ' · ' + k.rozmiar : '');
+  document.getElementById('modal-sell').classList.add('open');
+}
+
+function closeModalSell() {
+  document.getElementById('modal-sell').classList.remove('open');
+  pendingSellId = null;
+}
+
+function confirmSell() {
+  closeModalSell();
+  if (pendingSellId !== null) doSell(pendingSellId);
+}
+
+async function doSell(id) {
   const k = kaski.find(x => x.id === id);
   if (!k) return;
   const nowSprzedany = !k.sprzedany;
   k.sprzedany = nowSprzedany;
   if (nowSprzedany) { k.ekspozycja = false; k.zarezerwowany = false; }
   render();
-
   if (sb) {
     setStatus('syncing', 'zapisywanie...');
     const { error } = await sb.from('kaski').update({ sprzedany: nowSprzedany, ekspozycja: k.ekspozycja, zarezerwowany: false }).eq('id', id);
     if (error) { k.sprzedany = !nowSprzedany; toast('❌ Błąd: ' + error.message); render(); setStatus('offline','błąd'); return; }
     setStatus('ok', 'zsynchronizowano ' + fmtTime());
   }
-  toast(nowSprzedany ? '💰 Oznaczono jako sprzedany' : '↩ Cofnięto sprzedaż');
+  toast(nowSprzedany ? '💰 Sprzedano!' : '↩ Cofnięto sprzedaż');
 }
 
 async function toggleEkspozycja(id) {
@@ -563,6 +625,7 @@ function esc(s) {
 }
 
 function render() {
+  if (currentView === 'expo') { renderExpo(); buildChips(); return; }
   buildChips();
   const q = document.getElementById('search').value.toLowerCase();
   let lista = kaski.filter(k => {
@@ -629,7 +692,7 @@ function render() {
           </div>
           <div class="kask-actions">
             <button class="btn btn-expo${k.ekspozycja?' active':''}" onclick="toggleEkspozycja(${k.id})">🟢 Ekspozycja</button>
-            <button class="btn ${k.sprzedany?'btn-undo':'btn-sell'}" onclick="toggleSell(${k.id})">${k.sprzedany ? 'Cofnij' : '✓ Sprzedany'}</button>
+            <button class="btn ${k.sprzedany?'btn-undo':'btn-sell'}" onclick="askSell(${k.id})">${k.sprzedany ? 'Cofnij' : '✓ Sprzedany'}</button>
             <button class="btn btn-edit" onclick="openDrawer(${k.id})" title="Edytuj notatkę">✎</button>
             <button class="btn btn-del" onclick="askDel(${k.id})">✕</button>
           </div>
@@ -753,6 +816,62 @@ async function toggleKartonExpo(karton) {
   toast(nowExpo ? `🟢 Karton ${karton} na ekspozycji` : `↩ Zdjęto karton ${karton} z ekspozycji`);
 }
 
+// ─── Widok ekspozycji ────────────────────────────────────────────
+let currentView = 'lista';
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('panel-lista').style.display = v === 'lista' ? '' : 'none';
+  document.getElementById('panel-expo').style.display = v === 'expo' ? '' : 'none';
+  document.getElementById('tab-lista').classList.toggle('active', v === 'lista');
+  document.getElementById('tab-expo').classList.toggle('active', v === 'expo');
+  if (v === 'expo') renderExpo();
+}
+
+function renderExpo() {
+  const dostepne = kaski.filter(k => !k.sprzedany);
+
+  // unikalne kolory ze wszystkich dostępnych kasków
+  const kolory = [...new Set(dostepne.map(k => (k.kolor||'').trim().toUpperCase()).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pl'));
+
+  const naExpo = kaski.filter(k => k.ekspozycja).length;
+  const kolorowOk = kolory.filter(kolor => dostepne.some(k => k.ekspozycja && (k.kolor||'').toUpperCase() === kolor)).length;
+  const kolorowBrak = kolory.length - kolorowOk;
+
+  const el = document.getElementById('expo-content');
+
+  // statystyki
+  const statsHtml = `
+    <div class="stats" style="margin-bottom:20px">
+      <div class="stat"><div class="stat-num">${naExpo}</div><div class="stat-label">Na ekspozycji</div></div>
+      <div class="stat"><div class="stat-num green">${kolorowOk}</div><div class="stat-label">Kolory ✓</div></div>
+      <div class="stat"><div class="stat-num red">${kolorowBrak}</div><div class="stat-label">Brakuje</div></div>
+    </div>`;
+
+  // karty kolorów
+  const cardsHtml = `
+    <div class="expo-section-title">Kolory — czy każdy jest na ekspozycji?</div>
+    <div class="expo-grid">
+      ${kolory.map(kolor => {
+        const kaski_tego_koloru = dostepne.filter(k => (k.kolor||'').toUpperCase() === kolor);
+        const naExpoTego = kaski_tego_koloru.filter(k => k.ekspozycja);
+        const ok = naExpoTego.length > 0;
+        const dot = kolorDot(kolor);
+        const modele = [...new Set(kaski_tego_koloru.map(k => k.nazwa))].join(', ');
+        return `<div class="expo-kolor-card ${ok?'ok':'brak'}">
+          <div class="expo-kolor-name">
+            <span style="width:10px;height:10px;border-radius:50%;background:${dot};border:1px solid rgba(0,0,0,0.15);flex-shrink:0;display:inline-block"></span>
+            ${esc(kolor)}
+          </div>
+          <div class="expo-kolor-meta">${ok ? `${naExpoTego.length} szt. wystawione` : 'brak na ekspozycji'}</div>
+          <div class="expo-kolor-meta" style="margin-top:2px;font-size:10px;opacity:0.7">${esc(modele)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  el.innerHTML = statsHtml + cardsHtml;
+}
+
 // ─── Toggle formularza ───────────────────────────────────────────
 function toggleForm() {
   const card = document.getElementById('add-card');
@@ -773,7 +892,8 @@ function handleNazwaKey(e) {
 
 // ─── Boot ─────────────────────────────────────────────────────────
 document.getElementById('modal-del').addEventListener('click', function(e) { if(e.target===this) closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDrawer(); } });
+document.getElementById('modal-sell').addEventListener('click', function(e) { if(e.target===this) closeModalSell(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeModalSell(); closeDrawer(); } });
 load();
 </script>
 </body>
