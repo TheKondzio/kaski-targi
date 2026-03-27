@@ -494,8 +494,9 @@ function closeModalSell() {
 }
 
 function confirmSell() {
+  const id = pendingSellId;
   closeModalSell();
-  if (pendingSellId !== null) doSell(pendingSellId);
+  if (id !== null) doSell(id);
 }
 
 async function doSell(id) {
